@@ -1,0 +1,19 @@
+*** ffmpeg Windows ***
+
+Get ffmpeg prebuilt Windows binaries from
+
+    https://ffmpeg.zeranoe.com/builds/win64/shared/ffmpeg-3.0.1-win64-shared.7z
+    https://ffmpeg.zeranoe.com/builds/win64/dev/ffmpeg-3.0.1-win64-dev.7z
+
+Unzip both to external/ffmpeg such that the directory tree looks like this:
+    external
+     +- ffmpeg
+      +- bin
+      +- include
+      +- lib
+
+
+Alternatively, build ffmpeg from source as described here
+    https://trac.ffmpeg.org/wiki/CompilationGuide/MSVC
+
+and install to external/ffmpeg.
