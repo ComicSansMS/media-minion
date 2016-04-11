@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.2)
 project(media-minion)
 
 if(WIN32)
-    set(FFMPEG_ROOT ${PROJECT_SOURCE_DIR}/external/ffmpeg)
+    set(FFMPEG_ROOT ${PROJECT_SOURCE_DIR}/external/ffmpeg CACHE PATH "ffmpeg installation root directory.")
     find_path(FFMPEG_INCLUDE_DIRECTORY
         NAMES libavcodec/avcodec.h
         HINTS ${FFMPEG_ROOT}/include
@@ -51,13 +51,32 @@ if(WIN32)
     )
 endif()
 
+set(GSL_ROOT ${PROJECT_SOURCE_DIR}/external/GSL CACHE PATH "GSL: Guidelines Support Library root directory.")
+find_path(GSL_INCLUDE_DIRECTORY NAMES gsl.h HINTS ${GSL_ROOT}/include)
+
+
+set(Boost_USE_STATIC_LIBS ON)
+find_package(Boost REQUIRED)
+add_definitions(-DBOOST_ALL_NO_LIB)
+
+set(GHULBUS_BASE_ROOT "" CACHE PATH "GhulbusBase installation root directory.")
+if(GHULBUS_BASE_ROOT)
+    list(APPEND CMAKE_PREFIX_PATH ${GHULBUS_BASE_ROOT}/cmake)
+endif()
+find_package(gbBase REQUIRED)
+
 add_executable(demo
     ${PROJECT_SOURCE_DIR}/src/demo.cpp
     ${PROJECT_SOURCE_DIR}/src/StreamIOContext.cpp
     ${PROJECT_SOURCE_DIR}/src/StreamIOContext.hpp
 )
-target_include_directories(demo PRIVATE ${PROJECT_SOURCE_DIR}/src ${FFMPEG_INCLUDE_DIRECTORY})
-target_link_libraries(demo PRIVATE ${FFMPEG_LIBRARIES})
+target_include_directories(demo PRIVATE
+    ${PROJECT_SOURCE_DIR}/src
+    ${FFMPEG_INCLUDE_DIRECTORY}
+    ${GSL_INCLUDE_DIRECTORY}
+    ${Boost_INCLUDE_DIR}
+)
+target_link_libraries(demo PRIVATE ${FFMPEG_LIBRARIES} Ghulbus::gbBase)
 if(WIN32)
     file(COPY ${FFMPEG_DLLS} DESTINATION ${PROJECT_BINARY_DIR})
 endif()

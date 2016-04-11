@@ -1,5 +1,7 @@
 #include <StreamIOContext.hpp>
 
+#include <gbBase/Assert.hpp>
+
 extern "C" {
 #   include <libavformat/avio.h>
 }
@@ -72,8 +74,7 @@ int64_t StreamIOContext::io_seek(int64_t offset, int whence)
         ret = fsize;
     } break;
     default:
-        // assert(false)
-        break;
+        GHULBUS_UNREACHABLE_MESSAGE("Invalid whence token in seek.");
     }
     if(m_fin.fail()) { return -1; }
     return ret;
