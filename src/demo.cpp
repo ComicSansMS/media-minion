@@ -61,29 +61,35 @@ int main()
         auto const buffer_size = snprintf(nullptr, 0, fmt, vl) + 1;
         std::vector<char> buffer(buffer_size);
         snprintf(buffer.data(), buffer_size, fmt, vl);
+        Ghulbus::LogLevel log_level;
         switch(level) {
+        default:
         case AV_LOG_PANIC:
         case AV_LOG_FATAL:
-            GHULBUS_LOG(Critical, "[FFMPEG] " << buffer.data());
+            log_level = Ghulbus::LogLevel::Critical;
             break;
         case AV_LOG_ERROR:
-            GHULBUS_LOG(Error, "[FFMPEG] " << buffer.data());
+            log_level = Ghulbus::LogLevel::Error;
             break;
         case AV_LOG_WARNING:
-            GHULBUS_LOG(Warning, "[FFMPEG] " << buffer.data());
+            log_level = Ghulbus::LogLevel::Warning;
             break;
         case AV_LOG_INFO:
-            GHULBUS_LOG(Info, "[FFMPEG] " << buffer.data());
+            log_level = Ghulbus::LogLevel::Info;
             break;
         case AV_LOG_VERBOSE:
         case AV_LOG_DEBUG:
-            GHULBUS_LOG(Debug, "[FFMPEG] " << buffer.data());
+            log_level = Ghulbus::LogLevel::Debug;
             break;
         case AV_LOG_TRACE:
-            GHULBUS_LOG(Trace, "[FFMPEG] " << buffer.data());
+            log_level = Ghulbus::LogLevel::Trace;
             break;
         }
+        GHULBUS_LOG_QUALIFIED(log_level, "[FFMPEG] " << buffer.data());
     });
+
+    av_log_set_callback(av_log_default_callback);
+    av_log(nullptr, AV_LOG_ERROR, "Foo");
 
     std::unique_ptr<AVFormatContext, void(*)(AVFormatContext*)> format_context_storage(avformat_alloc_context(),
                                                                                        &avformat_free_context);
@@ -123,10 +129,6 @@ int main()
     GHULBUS_LOG(Info, "Length: " << (length / 60) << ":" << ((length % 60 < 10) ? "0" : "") << (length % 60));
 
     auto codec = avcodec_find_decoder(stream->codec->codec_id);
-    /*
-    AVCodec* codec = nullptr;
-    av_find_best_stream(format_context, AVMEDIA_TYPE_AUDIO, play, -1, &codec, 0);
-    */
     if(codec == 0) {
         GHULBUS_LOG(Error, "Invalid codec.");
     }
