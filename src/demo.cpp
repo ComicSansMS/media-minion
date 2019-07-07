@@ -1,15 +1,19 @@
 #include <StreamIOContext.hpp>
 
 #include <gbBase/Assert.hpp>
+#include <gbBase/Finally.hpp>
 #include <gbBase/Log.hpp>
 #include <gbBase/LogHandlers.hpp>
+
+#include <gbAudio/Audio.hpp>
+#include <gbAudio/AudioDevice.hpp>
+#include <gbAudio/Buffer.hpp>
+#include <gbAudio/Source.hpp>
 
 extern "C" {
 #   include <libavcodec/avcodec.h>
 #   include <libavformat/avformat.h>
 }
-
-#include <gsl_util.h>
 
 #include <atomic>
 #include <iostream>
@@ -82,12 +86,18 @@ void ffmpegLogHandler(void* avcl, int level, char const* fmt, va_list vl)
 int main()
 {
     Ghulbus::Log::initializeLogging();
+    auto guard_shutdown_logging = Ghulbus::finally([]() { Ghulbus::Log::shutdownLogging(); });
     Ghulbus::Log::setLogLevel(Ghulbus::LogLevel::Info);
     Ghulbus::Log::Handlers::LogMultiSink downstream(Ghulbus::Log::Handlers::logToCout,
                                                     Ghulbus::Log::Handlers::logToWindowsDebugger);
     Ghulbus::Log::Handlers::LogAsync top_level(downstream);
     top_level.start();
+    auto guard_stop_async_logging = Ghulbus::finally([&top_level]() { top_level.stop();; });
     Ghulbus::Log::setLogHandler(top_level);
+
+    auto guard_shutdown_audio = Ghulbus::finally([]() { GhulbusAudio::initializeAudio(); });
+
+    GhulbusAudio::AudioDevicePtr audio_device = GhulbusAudio::AudioDevice::create();
 
     av_register_all();
     avformat_network_init();
@@ -141,7 +151,7 @@ int main()
     if(res != 0) {
         GHULBUS_LOG(Error, "Error opening codec: " << translateErrorCode(res));
     }
-    auto const codec_context_guard = gsl::finally([&codec_context]() { avcodec_close(codec_context.get()); });
+    auto const codec_context_guard = Ghulbus::finally([&codec_context]() { avcodec_close(codec_context.get()); });
 
     auto frame_deleter = [](AVFrame* f) { av_frame_free(&f); };
     std::unique_ptr<AVFrame, void(*)(AVFrame*)> frame(av_frame_alloc(), frame_deleter);
@@ -149,12 +159,7 @@ int main()
 
     AVPacket packet;
     av_init_packet(&packet);
-    /*
-    std::vector<uint8_t> buffer;
-    std::size_t const AUDIO_BUFFER_SIZE = 20480;        // 20 KiB
-    static_assert(AUDIO_BUFFER_SIZE >= AV_INPUT_BUFFER_MIN_SIZE, "Buffer too small.");
-    buffer.resize(AUDIO_BUFFER_SIZE + AV_INPUT_BUFFER_PADDING_SIZE);    // mind the padding!
-    */
+
     packet.data = nullptr;
     packet.size = 0;
     while (av_read_frame(format_context, &packet) == 0) {
@@ -168,10 +173,11 @@ int main()
         GHULBUS_LOG(Info, "  " << t->key << " - " << t->value);
     }
 
-    std::vector<char> raw_data;
+    GhulbusAudio::BufferPtr audio_buffer = audio_device->createBuffer();
+    GhulbusAudio::DataStereo16Bit audio_data_acc{44100};
     while(av_read_frame(format_context, &packet) == 0) {
         auto const packet_guard =
-            gsl::finally([packet]() mutable { av_packet_unref(&packet); });     // capture by-value here! packet will
+            Ghulbus::finally([packet]() mutable { av_packet_unref(&packet); }); // capture by-value here! packet will
                                                                                 // get overwritten by decode below
         res = avcodec_send_packet(codec_context.get(), &packet);
         if(res != 0) {
@@ -189,6 +195,22 @@ int main()
                     break;
                 }
             }
+            if (codec_context->sample_fmt == AV_SAMPLE_FMT_S16P) {
+                GHULBUS_ASSERT(codec_context->sample_rate > 0);
+                GHULBUS_ASSERT(av_get_bytes_per_sample(codec_context->sample_fmt) == sizeof(int16_t));
+                GHULBUS_ASSERT(frame->channels == 2);
+                GhulbusAudio::DataStereo16Bit audio_data{ static_cast<uint32_t>(codec_context->sample_rate) };
+                audio_data.resize(frame->nb_samples);
+                for (int sample_idx = 0; sample_idx < frame->nb_samples; ++sample_idx) {
+                    std::memcpy(&audio_data[sample_idx].left,
+                                frame->extended_data[0] + sizeof(int16_t)*sample_idx, sizeof(int16_t));
+                    std::memcpy(&audio_data[sample_idx].right,
+                                frame->extended_data[1] + sizeof(int16_t) * sample_idx, sizeof(int16_t));
+                }
+                audio_data_acc.append(audio_data);
+            } else {
+                GHULBUS_LOG(Error, "Unrecognized sample format " << av_get_sample_fmt_name(codec_context->sample_fmt));
+            }
         }
     }
 
@@ -205,7 +227,10 @@ int main()
         }
     }
 
-
-    top_level.stop();
-    Ghulbus::Log::shutdownLogging();
+    audio_buffer->setData(audio_data_acc);
+    GhulbusAudio::SourcePtr audio_source = audio_device->createSource();
+    audio_source->bindBuffer(*audio_buffer);
+    GHULBUS_LOG(Info, "Playing...");
+    audio_source->play();
+    std::this_thread::sleep_for(audio_data_acc.getTotalLength());
 }

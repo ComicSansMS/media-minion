@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.14)
 
 project(media-minion)
 
@@ -51,10 +51,6 @@ if(WIN32)
     )
 endif()
 
-set(GSL_ROOT ${PROJECT_SOURCE_DIR}/external/GSL CACHE PATH "GSL: Guidelines Support Library root directory.")
-find_path(GSL_INCLUDE_DIRECTORY NAMES gsl.h HINTS ${GSL_ROOT}/include)
-
-
 set(Boost_USE_STATIC_LIBS ON)
 find_package(Boost REQUIRED)
 add_definitions(-DBOOST_ALL_NO_LIB)
@@ -65,6 +61,12 @@ if(GHULBUS_BASE_ROOT)
 endif()
 find_package(gbBase REQUIRED)
 
+set(GHULBUS_AUDIO_ROOT "" CACHE PATH "GhulbusAudio installation root directory.")
+if(GHULBUS_AUDIO_ROOT)
+    list(APPEND CMAKE_PREFIX_PATH ${GHULBUS_AUDIO_ROOT}/cmake)
+endif()
+find_package(gbAudio REQUIRED)
+
 add_executable(demo
     ${PROJECT_SOURCE_DIR}/src/demo.cpp
     ${PROJECT_SOURCE_DIR}/src/StreamIOContext.cpp
@@ -73,10 +75,9 @@ add_executable(demo
 target_include_directories(demo PRIVATE
     ${PROJECT_SOURCE_DIR}/src
     ${FFMPEG_INCLUDE_DIRECTORY}
-    ${GSL_INCLUDE_DIRECTORY}
     ${Boost_INCLUDE_DIR}
 )
-target_link_libraries(demo PRIVATE ${FFMPEG_LIBRARIES} Ghulbus::gbBase)
+target_link_libraries(demo PRIVATE ${FFMPEG_LIBRARIES} Ghulbus::gbBase Ghulbus::gbAudio)
 if(WIN32)
     file(COPY ${FFMPEG_DLLS} DESTINATION ${PROJECT_BINARY_DIR})
 endif()
