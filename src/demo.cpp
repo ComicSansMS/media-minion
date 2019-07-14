@@ -150,6 +150,46 @@ GhulbusAudio::DataStereo16Bit decode_frame_s32(AVCodecContext* codec_context, AV
     return audio_data;
 }
 
+template<typename T>
+T crop(T v, T min, T max)
+{
+    return std::max(std::min(v, max), min);
+}
+
+GhulbusAudio::DataStereo16Bit decode_frame_flp(AVCodecContext* codec_context, AVFrame* frame)
+{
+    GHULBUS_PRECONDITION(codec_context->sample_rate > 0);
+    GhulbusAudio::DataStereo16Bit audio_data{ static_cast<uint32_t>(codec_context->sample_rate) };
+    for (;;) {
+        int res = avcodec_receive_frame(codec_context, frame);
+        if (res != 0) {
+            if (res == AVERROR(EAGAIN)) {
+                // everything we read before was decoded; read more stuff and call send_packet again
+                break;
+            } else if (res == AVERROR_EOF) {
+                GHULBUS_LOG(Info, "Done decoding.");
+                break;
+            } else {
+                GHULBUS_LOG(Error, "Codec receive frame error: " << res);
+                break;
+            }
+        }
+        GHULBUS_ASSERT(av_get_bytes_per_sample(codec_context->sample_fmt) == sizeof(float));
+        std::size_t const idx_base = audio_data.getNumberOfSamples();
+        audio_data.resize(audio_data.getNumberOfSamples() + frame->nb_samples);
+        for (int sample_idx = 0; sample_idx < frame->nb_samples; ++sample_idx) {
+            float f1, f2;
+            std::memcpy(&f1, frame->extended_data[0] + sizeof(float) * sample_idx, sizeof(float));
+            f1 = crop(f1, -1.f, 1.f);
+            audio_data[idx_base + sample_idx].left =  static_cast<int16_t>(f1 * 32767.f);
+            std::memcpy(&f2, frame->extended_data[1] + sizeof(float) * sample_idx, sizeof(float));
+            f2 = crop(f2, -1.f, 1.f);
+            audio_data[idx_base + sample_idx].right = static_cast<int16_t>(f2 * 32767.f);
+        }
+    }
+    return audio_data;
+}
+
 GhulbusAudio::DataVariant decode_packet(AVFormatContext* format_context, AVPacket* packet, AVCodecContext* codec_context,
                                       AVFrame* frame)
 {
@@ -166,6 +206,7 @@ GhulbusAudio::DataVariant decode_packet(AVFormatContext* format_context, AVPacke
     {
     case AV_SAMPLE_FMT_S16P: return decode_frame_s16p(codec_context, frame);
     case AV_SAMPLE_FMT_S32:  return decode_frame_s32(codec_context, frame);
+    case AV_SAMPLE_FMT_FLTP: return decode_frame_flp(codec_context, frame);
     default:
         GHULBUS_LOG(Error, "Unrecognized sample format " << av_get_sample_fmt_name(codec_context->sample_fmt));
         GHULBUS_THROW(Ghulbus::Exceptions::IOError{}, "Unrecognized sample format.");
