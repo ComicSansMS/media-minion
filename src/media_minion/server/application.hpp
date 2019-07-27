@@ -23,8 +23,9 @@ private:
     boost::asio::io_context m_io_ctx;
     boost::asio::executor_work_guard<boost::asio::io_context::executor_type> m_workGuard;
     boost::asio::ip::tcp::acceptor m_acceptor;
-    boost::asio::ip::tcp::socket m_acceptingSocket;
-    std::vector<boost::asio::ip::tcp::socket> m_active_connections;
+    std::vector<std::unique_ptr<boost::asio::ip::tcp::socket>> m_active_connections;
+
+    struct HttpSessionState;
 
 public:
     Application(Configuration& config);
@@ -39,8 +40,13 @@ public:
     int run();
 
     void requestShutdown();
+
 private:
-    void onAccept(boost::system::error_code const& ec);
+    void newAccept();
+    void onAccept(std::unique_ptr<boost::asio::ip::tcp::socket>&& s, boost::system::error_code const& ec);
+    void newHttpRead(HttpSessionState&& http_session);
+    void onHttpRead(HttpSessionState&& http_session, boost::system::error_code const& ec, std::size_t bytes_read);
+
 };
 
 }

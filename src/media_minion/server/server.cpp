@@ -23,7 +23,7 @@ LogFinalizers init_logging()
     Ghulbus::Log::initializeLogging();
     ret.guard_log_shutdown = Ghulbus::finally([]() { Ghulbus::Log::shutdownLogging(); });
 
-    Ghulbus::Log::setLogLevel(Ghulbus::LogLevel::Info);
+    Ghulbus::Log::setLogLevel(Ghulbus::LogLevel::Trace);
 
     ret.log_file = std::make_unique<Ghulbus::Log::Handlers::LogToFile>("mm_server.log");
     Ghulbus::Log::LogHandler downstream = *ret.log_file;
