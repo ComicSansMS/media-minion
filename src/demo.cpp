@@ -191,7 +191,7 @@ GhulbusAudio::DataStereo16Bit decode_frame_flp(AVCodecContext* codec_context, AV
 }
 
 GhulbusAudio::DataVariant decode_packet(AVFormatContext* format_context, AVPacket* packet, AVCodecContext* codec_context,
-                                      AVFrame* frame)
+                                        AVFrame* frame)
 {
     auto const packet_guard =
         Ghulbus::finally([packet]() mutable { if (packet) { av_packet_unref(packet); } }); // capture by-value here! packet will
@@ -236,7 +236,8 @@ int main()
                                                                                        &avformat_free_context);
     auto format_context = format_context_storage.get();
 
-    std::string filename("D:/Media/Warpaint/The Fool (2010)/Warpaint - 01 Set Your Arms Down.mp3");
+    //std::string filename("D:/Media/Warpaint/The Fool (2010)/Warpaint - 01 Set Your Arms Down.mp3");
+    std::string filename("G:/downloads/sophie hunger - molecules (flac)/02. Sliver Lane.flac");
     std::ifstream fin(filename, std::ios_base::binary);
     if(!fin) {
         exit(1);

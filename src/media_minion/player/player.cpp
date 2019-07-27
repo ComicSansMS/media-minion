@@ -1,4 +1,4 @@
-#include <ui/player_tray_icon.hpp>
+#include <media_minion/player/ui/tray_icon.hpp>
 
 #include <QApplication>
 
@@ -6,7 +6,7 @@ int main(int argc, char* argv[])
 {
     QApplication the_app(argc, argv);
 
-    PlayerTrayIcon tray_icon;
+    media_minion::player::ui::TrayIcon tray_icon;
 
     return the_app.exec();
 }

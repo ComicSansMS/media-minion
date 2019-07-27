@@ -2,6 +2,19 @@ cmake_minimum_required(VERSION 3.14)
 
 project(media-minion)
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/W4>)
+add_compile_options($<$<STREQUAL:$<CXX_COMPILER_ID>,MSVC>:/permissive->)
+add_compile_options($<$<STREQUAL:$<CXX_COMPILER_ID>,MSVC>:/std:c++latest>)
+#add_compile_options($<$<OR:$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:Clang>>:-pedantic -Wall>)
+#add_compile_options($<$<CXX_COMPILER_ID:GNU>:-pedantic -Wall>)
+
+if(WIN32)
+    add_compile_definitions(_WIN32_WINNT=0x0601)
+endif()
+
 if(WIN32)
     #set(FFMPEG_ROOT ${PROJECT_SOURCE_DIR}/external/ffmpeg CACHE PATH "ffmpeg installation root directory.")
     set(FFMPEG_ROOT $ENV{FFMPEG_ROOT})
@@ -53,11 +66,11 @@ if(WIN32)
 endif()
 
 set(Boost_USE_STATIC_LIBS ON)
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system thread)
 add_definitions(-DBOOST_ALL_NO_LIB)
 
 find_package(Qt5 REQUIRED COMPONENTS Widgets
-    HINTS $ENV{QT5_ROOT}/5.12.2/msvc2017_64
+    HINTS $ENV{QT5_ROOT}/5.12.2/msvc2017_64 $ENV{QT5_ROOT}/5.12.0/msvc2017_64
 )
 
 set(GHULBUS_BASE_ROOT "" CACHE PATH "GhulbusBase installation root directory.")
@@ -72,6 +85,7 @@ if(GHULBUS_AUDIO_ROOT)
 endif()
 find_package(gbAudio REQUIRED)
 
+
 add_executable(demo
     ${PROJECT_SOURCE_DIR}/src/demo.cpp
     ${PROJECT_SOURCE_DIR}/src/StreamIOContext.cpp
@@ -84,25 +98,79 @@ target_include_directories(demo PRIVATE
 )
 target_link_libraries(demo PRIVATE ${FFMPEG_LIBRARIES} Ghulbus::gbBase Ghulbus::gbAudio)
 
+set(MM_INCLUDE_DIRECTORY ${PROJECT_SOURCE_DIR}/src)
 
-set(MM_PLAYER_SOURCE_DIRECTORY ${PROJECT_SOURCE_DIR}/src/player)
+#########################################################################################
+#### common                                                                          ####
+#########################################################################################
+
+set(MM_COMMON_SOURCE_DIRECTORY ${PROJECT_SOURCE_DIR}/src/media_minion/common)
+
+set(MM_COMMON_SOURCE_FILES
+    ${MM_COMMON_SOURCE_DIRECTORY}/common.cpp
+)
+
+set(MM_COMMON_HEADER_FILES
+    ${MM_COMMON_SOURCE_DIRECTORY}/common.hpp
+)
+
+add_library(mm_common STATIC
+    ${MM_COMMON_SOURCE_FILES}
+    ${MM_COMMON_HEADER_FILES}
+)
+target_include_directories(mm_common PUBLIC ${MM_INCLUDE_DIRECTORY})
+
+#########################################################################################
+#### server                                                                          ####
+#########################################################################################
+
+set(MM_SERVER_SOURCE_DIRECTORY ${PROJECT_SOURCE_DIR}/src/media_minion/server)
+set(MM_SERVER_SOURCE_FILES
+    ${MM_SERVER_SOURCE_DIRECTORY}/server.cpp
+    ${MM_SERVER_SOURCE_DIRECTORY}/application.cpp
+    ${MM_SERVER_SOURCE_DIRECTORY}/configuration.cpp
+)
+
+set(MM_SERVER_HEADER_FILES
+    ${MM_SERVER_SOURCE_DIRECTORY}/application.hpp
+    ${MM_SERVER_SOURCE_DIRECTORY}/configuration.hpp
+    ${MM_SERVER_SOURCE_DIRECTORY}/types.hpp
+)
+
+add_executable(mm_server
+    ${MM_SERVER_SOURCE_FILES}
+    ${MM_SERVER_HEADER_FILES}
+)
+target_include_directories(mm_server PUBLIC ${MM_INCLUDE_DIRECTORY})
+target_link_libraries(mm_server PUBLIC
+    Boost::disable_autolinking
+    Boost::system
+    Boost::thread
+    Ghulbus::gbBase
+)
+
+#########################################################################################
+#### player                                                                          ####
+#########################################################################################
+
+set(MM_PLAYER_SOURCE_DIRECTORY ${PROJECT_SOURCE_DIR}/src/media_minion/player)
 
 set(MM_PLAYER_SOURCE_FILES
-    ${MM_PLAYER_SOURCE_DIRECTORY}/mm_player.cpp
+    ${MM_PLAYER_SOURCE_DIRECTORY}/player.cpp
 )
 
 set(MM_PLAYER_HEADER_FILES
 )
 
 set(MM_PLAYER_QT_SOURCE_FILES
-    ${MM_PLAYER_SOURCE_DIRECTORY}/ui/player_tray_icon.cpp
+    ${MM_PLAYER_SOURCE_DIRECTORY}/ui/tray_icon.cpp
 )
 
 set(MM_PLAYER_QT_HEADER_FILES
 )
 
 set(MM_PLAYER_QT_MOC_HEADER_FILES
-    ${MM_PLAYER_SOURCE_DIRECTORY}/ui/player_tray_icon.hpp
+    ${MM_PLAYER_SOURCE_DIRECTORY}/ui/tray_icon.hpp
 )
 qt5_wrap_cpp(MM_PLAYER_QT_MOC_SOURCE_FILES ${MM_PLAYER_QT_MOC_HEADER_FILES})
 
@@ -118,13 +186,58 @@ add_executable(mm_player WIN32
     ${MM_PLAYER_QT_MOC_HEADER_FILES}
     ${MM_PLAYER_QT_MOC_SOURCE_FILES}
 )
-
-target_include_directories(mm_player PUBLIC ${MM_PLAYER_SOURCE_DIRECTORY})
+target_include_directories(mm_player PUBLIC ${MM_INCLUDE_DIRECTORY})
 target_link_libraries(mm_player PUBLIC
     Boost::disable_autolinking
     Boost::system
     Ghulbus::gbBase
     Ghulbus::gbAudio
+    Qt5::Core
+    Qt5::Widgets
+)
+
+#########################################################################################
+#### client                                                                          ####
+#########################################################################################
+
+set(MM_CLIENT_SOURCE_DIRECTORY ${PROJECT_SOURCE_DIR}/src/media_minion/client)
+
+set(MM_CLIENT_SOURCE_FILES
+    ${MM_CLIENT_SOURCE_DIRECTORY}/client.cpp
+)
+
+set(MM_CLIENT_HEADER_FILES
+)
+
+set(MM_CLIENT_QT_SOURCE_FILES
+    ${MM_CLIENT_SOURCE_DIRECTORY}/ui/client_widget.cpp
+)
+
+set(MM_CLIENT_QT_HEADER_FILES
+)
+
+set(MM_CLIENT_QT_MOC_HEADER_FILES
+    ${MM_CLIENT_SOURCE_DIRECTORY}/ui/client_widget.hpp
+)
+qt5_wrap_cpp(MM_CLIENT_QT_MOC_SOURCE_FILES ${MM_CLIENT_QT_MOC_HEADER_FILES})
+
+source_group(moc FILES
+    ${MM_CLIENT_QT_MOC_SOURCE_FILES}
+)
+
+add_executable(mm_client #WIN32
+    ${MM_CLIENT_SOURCE_FILES}
+    ${MM_CLIENT_HEADER_FILES}
+    ${MM_CLIENT_QT_SOURCE_FILES}
+    ${MM_CLIENT_QT_HEADER_FILES}
+    ${MM_CLIENT_QT_MOC_HEADER_FILES}
+    ${MM_CLIENT_QT_MOC_SOURCE_FILES}
+)
+target_include_directories(mm_client PUBLIC ${MM_INCLUDE_DIRECTORY})
+target_link_libraries(mm_client PUBLIC
+    Boost::disable_autolinking
+    Boost::system
+    Ghulbus::gbBase
     Qt5::Core
     Qt5::Widgets
 )
