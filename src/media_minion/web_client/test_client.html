@@ -37,6 +37,10 @@
     disconnect.onclick = function() {
       ws.close();
     };
+    send.onclick = function() {
+      ws.send(sendMessage.value);
+      sendMessage.value = "";
+    };
   </script>
 </body>
 </html>

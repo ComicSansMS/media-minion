@@ -37,6 +37,8 @@ public:
 private:
     void onAccept(boost::system::error_code const& ec);
     void onCloseCompleted(boost::system::error_code const& ec);
+    void newRead();
+    void onWebsocketRead(boost::system::error_code const& ec, std::size_t bytes_read);
 };
 
 }

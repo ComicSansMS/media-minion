@@ -2,6 +2,8 @@
 
 #include <boost/system/error_code.hpp>
 
+#include <gbBase/Log.hpp>
+
 namespace media_minion::server {
 
 WebsocketSession::WebsocketSession(boost::asio::ip::tcp::socket&& session_socket)
@@ -42,6 +44,8 @@ void WebsocketSession::onAccept(boost::system::error_code const& ec)
     if (onOpen) {
         onOpen();
     }
+
+    newRead();
 }
 
 void WebsocketSession::onCloseCompleted(boost::system::error_code const& ec)
@@ -57,5 +61,26 @@ void WebsocketSession::onCloseCompleted(boost::system::error_code const& ec)
     }
 }
 
+void WebsocketSession::newRead()
+{
+    m_websocket.async_read(m_buffer, [this](boost::system::error_code const& ec, std::size_t bytes) {
+            onWebsocketRead(ec, bytes);
+        });
+}
+
+void WebsocketSession::onWebsocketRead(boost::system::error_code const& ec, std::size_t bytes_read)
+{
+    if (ec) {
+        if (ec == boost::beast::websocket::error::closed) {
+            if (onClose) { onClose(); }
+        } else {
+            if (onError) { onError(ec); }
+        }
+        return;
+    }
+
+    GHULBUS_LOG(Trace, "Received " << bytes_read << " from websocket: " << static_cast<char const*>(m_buffer.data().data()));
+    newRead();
+}
 
 }

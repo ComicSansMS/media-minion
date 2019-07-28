@@ -119,8 +119,9 @@ void HttpServer::requestRemoveSession(HttpSession* s)
 {
     boost::asio::post(m_io_ctx, [this, s]() {
         auto const it = std::find_if(begin(m_sessions), end(m_sessions), [s](auto const& p) { return p.get() == s; });
-        GHULBUS_ASSERT(it != end(m_sessions));
-        m_sessions.erase(it);
+        if (it != end(m_sessions)) {
+            m_sessions.erase(it);
+        }
     });
 }
 
@@ -129,8 +130,9 @@ void HttpServer::requestRemoveSession(WebsocketSession* s)
     boost::asio::post(m_io_ctx, [this, s]() {
         auto const it = std::find_if(begin(m_websocket_sessions), end(m_websocket_sessions),
             [s](auto const& p) { return p.get() == s; });
-        GHULBUS_ASSERT(it != end(m_websocket_sessions));
-        m_websocket_sessions.erase(it);
+        if (it != end(m_websocket_sessions)) {
+            m_websocket_sessions.erase(it);
+        }
     });
 }
 }
