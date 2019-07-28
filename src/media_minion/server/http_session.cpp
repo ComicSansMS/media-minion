@@ -105,6 +105,16 @@ void HttpSession::onHttpRead(boost::system::error_code const& ec, std::size_t by
     sendResponse(response_not_found(m_request, m_request.target().to_string()));
 }
 
+void HttpSession::sendResponse(AnyResponse response)
+{
+    std::unique_ptr<AnyResponse> ar = std::make_unique<AnyResponse>(std::move(response));
+    AnyResponse & resp = *ar;
+    resp.async_write(m_socket,
+        [this, response = std::move(ar)](boost::system::error_code const& ec, std::size_t bytes) {
+            onHttpWrite(ec, bytes, response->need_eof());
+        });
+}
+
 void HttpSession::onHttpWrite(boost::system::error_code const& ec, std::size_t bytes_written, bool close_requested)
 {
     GHULBUS_UNUSED_VARIABLE(bytes_written);

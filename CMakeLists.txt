@@ -136,6 +136,8 @@ set(MM_SERVER_SOURCE_FILES
 )
 
 set(MM_SERVER_HEADER_FILES
+    ${MM_SERVER_SOURCE_DIRECTORY}/any_request.hpp
+    ${MM_SERVER_SOURCE_DIRECTORY}/any_response.hpp
     ${MM_SERVER_SOURCE_DIRECTORY}/application.hpp
     ${MM_SERVER_SOURCE_DIRECTORY}/callback_return.hpp
     ${MM_SERVER_SOURCE_DIRECTORY}/configuration.hpp

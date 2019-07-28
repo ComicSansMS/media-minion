@@ -1,6 +1,8 @@
 #ifndef MEDIA_MINION_INCLUDE_GUARD_SERVER_HTTP_SESSION_HPP_
 #define MEDIA_MINION_INCLUDE_GUARD_SERVER_HTTP_SESSION_HPP_
 
+#include <media_minion/server/any_response.hpp>
+
 #include <boost/asio/ip/tcp.hpp>
 
 #include <boost/beast/core/flat_buffer.hpp>
@@ -35,6 +37,7 @@ public:
 private:
     void newRead();
     void onHttpRead(boost::system::error_code const& ec, std::size_t bytes_read);
+    void sendResponse(AnyResponse response);
     void onHttpWrite(boost::system::error_code const& ec, std::size_t bytes_written, bool close_requested);
 };
 
