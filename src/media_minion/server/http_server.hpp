@@ -6,6 +6,7 @@
 #include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include <boost/beast/http/message.hpp>
 #include <boost/beast/http/string_body.hpp>
@@ -46,8 +47,9 @@ private:
     void createHttpSession(boost::asio::ip::tcp::socket&& s);
     void createWebsocketSession(boost::asio::ip::tcp::socket&& s,
                                 boost::beast::http::request<boost::beast::http::string_body>&& r);
-    void removeSession(HttpSession* s);
-    void removeSession(WebsocketSession* s);
+    void requestRemoveSession(HttpSession* s);
+    void requestRemoveSession(WebsocketSession* s);
+    void waitForShutdown(std::shared_ptr<boost::asio::steady_timer> timer);
 };
 
 }
