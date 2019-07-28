@@ -15,6 +15,7 @@ namespace media_minion::server {
 
 class HttpListener;
 class HttpSession;
+class WebsocketSession;
 
 class HttpServer {
 private:
@@ -22,6 +23,7 @@ private:
     boost::asio::executor_work_guard<boost::asio::io_context::executor_type> m_workGuard;
     HttpListener* m_listener;
     std::vector<std::unique_ptr<HttpSession>> m_sessions;
+    std::vector<std::unique_ptr<WebsocketSession>> m_websocket_sessions;
 public:
     HttpServer();
 
@@ -38,7 +40,10 @@ public:
 
     std::function<CallbackReturn(boost::system::error_code const&)> onError;
 private:
-
+    void createHttpSession(boost::asio::ip::tcp::socket&& s);
+    void createWebsocketSession(boost::asio::ip::tcp::socket&& s);
+    void removeSession(HttpSession* s);
+    void removeSession(WebsocketSession* s);
 };
 
 }

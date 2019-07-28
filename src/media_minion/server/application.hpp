@@ -28,10 +28,6 @@ public:
     int run();
 
     void requestShutdown();
-
-private:
-    //void newHttpRead(HttpSessionState&& http_session);
-    //void onHttpRead(HttpSessionState&& http_session, boost::system::error_code const& ec, std::size_t bytes_read);
 };
 
 }

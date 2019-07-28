@@ -31,8 +31,11 @@ public:
     void requestShutdown();
 
     std::function<void(boost::system::error_code const&)> onError;
+    std::function<void(boost::asio::ip::tcp::socket&&)> onWebsocketUpgrade;
 private:
+    void newRead();
     void onHttpRead(boost::system::error_code const& ec, std::size_t bytes_read);
+    void onHttpWrite(boost::system::error_code const& ec, std::size_t bytes_written, bool close_requested);
 };
 
 }
