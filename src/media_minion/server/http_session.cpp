@@ -95,7 +95,7 @@ void HttpSession::onHttpRead(boost::system::error_code const& ec, std::size_t by
     };
 
     if (boost::beast::websocket::is_upgrade(m_request)) {
-        if (onWebsocketUpgrade) { onWebsocketUpgrade(std::move(m_socket)); }
+        if (onWebsocketUpgrade) { onWebsocketUpgrade(std::move(m_socket), std::move(m_request)); }
         return;
     } else if ((m_request.method() != boost::beast::http::verb::get) &&
                (m_request.method() != boost::beast::http::verb::head)) {

@@ -7,6 +7,9 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 
+#include <boost/beast/http/message.hpp>
+#include <boost/beast/http/string_body.hpp>
+
 #include <functional>
 #include <memory>
 #include <vector>
@@ -41,7 +44,8 @@ public:
     std::function<CallbackReturn(boost::system::error_code const&)> onError;
 private:
     void createHttpSession(boost::asio::ip::tcp::socket&& s);
-    void createWebsocketSession(boost::asio::ip::tcp::socket&& s);
+    void createWebsocketSession(boost::asio::ip::tcp::socket&& s,
+                                boost::beast::http::request<boost::beast::http::string_body>&& r);
     void removeSession(HttpSession* s);
     void removeSession(WebsocketSession* s);
 };

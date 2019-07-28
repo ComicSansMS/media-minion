@@ -53,6 +53,7 @@ void HttpServer::requestShutdown()
     boost::asio::post(m_io_ctx.get_executor(), [this]() {
         if (m_listener) { m_listener->requestShutdown(); }
         for (auto const& session : m_sessions) { session->requestShutdown(); }
+        for (auto const& session : m_websocket_sessions) { session->requestShutdown(); }
         m_workGuard.reset();
     });
 }
@@ -64,22 +65,37 @@ void HttpServer::createHttpSession(boost::asio::ip::tcp::socket&& s)
         removeSession(ps);
     };
 
-    session.onWebsocketUpgrade = [this, ps = &session](boost::asio::ip::tcp::socket&& s) {
-        removeSession(ps);
-        createWebsocketSession(std::move(s));
+    session.onWebsocketUpgrade = [this, ps = &session](boost::asio::ip::tcp::socket&& s,
+                                                       boost::beast::http::request<boost::beast::http::string_body>&& r) {
+        GHULBUS_LOG(Trace, "Websocket Upgrade requested.");
+        boost::asio::post(m_io_ctx, [this, ps, s = std::move(s), r = std::move(r)]() mutable {
+                removeSession(ps);
+                createWebsocketSession(std::move(s), std::move(r));
+            });
     };
 
     session.run();
 }
 
-void HttpServer::createWebsocketSession(boost::asio::ip::tcp::socket&& s)
+void HttpServer::createWebsocketSession(boost::asio::ip::tcp::socket&& s,
+                                        boost::beast::http::request<boost::beast::http::string_body>&& r)
 {
     WebsocketSession& session = *m_websocket_sessions.emplace_back(std::make_unique<WebsocketSession>(std::move(s)));
-    session.onError = [this, ps = &session](boost::system::error_code const&) {
+    session.onError = [this, ps = &session](boost::system::error_code const& ec) {
+        GHULBUS_LOG(Error, "Error in websocket session: " << ec.message());
+        removeSession(ps);
+    };
+    session.onOpen = [this, ps = &session]() {
+        auto const& ep = ps->get_socket().remote_endpoint();
+        GHULBUS_LOG(Info, "Websocket session successfully established with " << ep.address() <<
+                          ":" << ep.port() << ".");
+    };
+    session.onClose = [this, ps = &session]() {
+        GHULBUS_LOG(Trace, "Closed websocket session.");
         removeSession(ps);
     };
 
-    session.run();
+    session.run(std::move(r));
 }
 
 void HttpServer::removeSession(HttpSession* s)
