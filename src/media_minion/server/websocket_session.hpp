@@ -34,6 +34,7 @@ public:
     std::function<void(boost::system::error_code const&)> onError;
     std::function<void()> onOpen;
     std::function<void()> onClose;
+    std::function<void(std::string)> onMessage;
 private:
     void onAccept(boost::system::error_code const& ec);
     void onCloseCompleted(boost::system::error_code const& ec);

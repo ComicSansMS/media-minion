@@ -1,5 +1,7 @@
 #include <media_minion/server/websocket_session.hpp>
 
+#include <boost/beast/core/buffers_to_string.hpp>
+#include <boost/beast/core/make_printable.hpp>
 #include <boost/system/error_code.hpp>
 
 #include <gbBase/Log.hpp>
@@ -79,7 +81,12 @@ void WebsocketSession::onWebsocketRead(boost::system::error_code const& ec, std:
         return;
     }
 
-    GHULBUS_LOG(Trace, "Received " << bytes_read << " from websocket: " << static_cast<char const*>(m_buffer.data().data()));
+    GHULBUS_LOG(Trace, "Received " << bytes_read << " from websocket: " <<
+                       boost::beast::make_printable(m_buffer.data()));
+    if (onMessage) {
+        onMessage(boost::beast::buffers_to_string(m_buffer.data()));
+    }
+    m_buffer.consume(bytes_read);
     newRead();
 }
 
