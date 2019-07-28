@@ -129,12 +129,20 @@ set(MM_SERVER_SOURCE_FILES
     ${MM_SERVER_SOURCE_DIRECTORY}/server.cpp
     ${MM_SERVER_SOURCE_DIRECTORY}/application.cpp
     ${MM_SERVER_SOURCE_DIRECTORY}/configuration.cpp
+    ${MM_SERVER_SOURCE_DIRECTORY}/http_listener.cpp
+    ${MM_SERVER_SOURCE_DIRECTORY}/http_server.cpp
+    ${MM_SERVER_SOURCE_DIRECTORY}/http_session.cpp
+    ${MM_SERVER_SOURCE_DIRECTORY}/websocket_session.cpp
 )
 
 set(MM_SERVER_HEADER_FILES
     ${MM_SERVER_SOURCE_DIRECTORY}/application.hpp
+    ${MM_SERVER_SOURCE_DIRECTORY}/callback_return.hpp
     ${MM_SERVER_SOURCE_DIRECTORY}/configuration.hpp
-    ${MM_SERVER_SOURCE_DIRECTORY}/types.hpp
+    ${MM_SERVER_SOURCE_DIRECTORY}/http_listener.hpp
+    ${MM_SERVER_SOURCE_DIRECTORY}/http_server.hpp
+    ${MM_SERVER_SOURCE_DIRECTORY}/http_session.hpp
+    ${MM_SERVER_SOURCE_DIRECTORY}/websocket_session.hpp
 )
 
 add_executable(mm_server

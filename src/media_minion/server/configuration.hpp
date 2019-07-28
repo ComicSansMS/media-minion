@@ -1,7 +1,7 @@
 #ifndef MEDIA_MINION_INCLUDE_GUARD_SERVER_CONFIGURATION_HPP_
 #define MEDIA_MINION_INCLUDE_GUARD_SERVER_CONFIGURATION_HPP_
 
-#include <media_minion/server/types.hpp>
+#include <cstdint>
 
 namespace media_minion::server {
 
