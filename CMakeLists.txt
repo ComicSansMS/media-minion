@@ -73,6 +73,11 @@ find_package(Qt5 REQUIRED COMPONENTS Widgets
     HINTS $ENV{QT5_ROOT}/5.12.2/msvc2017_64 $ENV{QT5_ROOT}/5.12.0/msvc2017_64
 )
 
+find_package(RapidJSON REQUIRED)
+add_library(RapidJSON INTERFACE)
+target_include_directories(RapidJSON INTERFACE ${RAPIDJSON_INCLUDE_DIRS})
+target_compile_definitions(RapidJSON INTERFACE RAPIDJSON_HAS_STDSTRING=1)
+
 set(GHULBUS_BASE_ROOT "" CACHE PATH "GhulbusBase installation root directory.")
 if(GHULBUS_BASE_ROOT)
     list(APPEND CMAKE_PREFIX_PATH ${GHULBUS_BASE_ROOT}/cmake)
@@ -157,6 +162,7 @@ target_link_libraries(mm_server PUBLIC
     Boost::system
     Boost::thread
     Ghulbus::gbBase
+    RapidJSON
 )
 
 #########################################################################################
@@ -214,9 +220,11 @@ set(MM_CLIENT_SOURCE_DIRECTORY ${PROJECT_SOURCE_DIR}/src/media_minion/client)
 
 set(MM_CLIENT_SOURCE_FILES
     ${MM_CLIENT_SOURCE_DIRECTORY}/client.cpp
+    ${MM_CLIENT_SOURCE_DIRECTORY}/websocket.cpp
 )
 
 set(MM_CLIENT_HEADER_FILES
+    ${MM_CLIENT_SOURCE_DIRECTORY}/websocket.hpp
 )
 
 set(MM_CLIENT_QT_SOURCE_FILES
@@ -250,6 +258,7 @@ target_link_libraries(mm_client PUBLIC
     Ghulbus::gbBase
     Qt5::Core
     Qt5::Widgets
+    RapidJSON
 )
 
 

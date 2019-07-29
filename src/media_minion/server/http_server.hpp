@@ -43,6 +43,7 @@ public:
     HttpServer& operator=(HttpServer&&) = delete;
 
     std::function<CallbackReturn(boost::system::error_code const&)> onError;
+    std::function<void(std::string)> onWebsocketMessage;
 private:
     void createHttpSession(boost::asio::ip::tcp::socket&& s);
     void createWebsocketSession(boost::asio::ip::tcp::socket&& s,

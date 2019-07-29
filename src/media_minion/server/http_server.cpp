@@ -111,6 +111,11 @@ void HttpServer::createWebsocketSession(boost::asio::ip::tcp::socket&& s,
         GHULBUS_LOG(Trace, "Closed websocket session.");
         requestRemoveSession(ps);
     };
+    session.onMessage = [this, ps = &session](std::string msg) {
+        if (onWebsocketMessage) {
+            onWebsocketMessage(std::move(msg));
+        }
+    };
 
     session.run(std::move(r));
 }

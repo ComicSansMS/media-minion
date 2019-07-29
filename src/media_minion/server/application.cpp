@@ -6,6 +6,8 @@
 #include <gbBase/Log.hpp>
 #include <gbBase/UnusedVariable.hpp>
 
+#include <rapidjson/rapidjson.h>
+
 #include <algorithm>
 
 namespace media_minion::server {
@@ -38,6 +40,9 @@ int Application::run()
     m_server->onError = [](boost::system::error_code const& ec) {
         GHULBUS_LOG(Error, "Error in Http server: " << ec.message());
         return CallbackReturn::Continue;
+    };
+
+    m_server->onWebsocketMessage = [](std::string msg) {
     };
 
     return m_server->run(get_protocol(m_config.protocol), m_config.listening_port);
