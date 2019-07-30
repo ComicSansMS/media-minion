@@ -6,10 +6,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/W4>)
-add_compile_options($<$<STREQUAL:$<CXX_COMPILER_ID>,MSVC>:/permissive->)
-add_compile_options($<$<STREQUAL:$<CXX_COMPILER_ID>,MSVC>:/std:c++latest>)
-#add_compile_options($<$<OR:$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:Clang>>:-pedantic -Wall>)
-#add_compile_options($<$<CXX_COMPILER_ID:GNU>:-pedantic -Wall>)
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/permissive->)
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/std:c++latest>)
+add_compile_options($<$<CXX_COMPILER_ID:GNU,AppleClang,Clang>:-Wall>)
+add_compile_options($<$<CXX_COMPILER_ID:GNU,AppleClang,Clang>:-pedantic>)
+add_compile_options($<$<CXX_COMPILER_ID:Clang>:-stdlib=libc++>)
 
 if(WIN32)
     add_compile_definitions(_WIN32_WINNT=0x0601)
@@ -260,7 +261,8 @@ target_link_libraries(mm_client PUBLIC
     Qt5::Widgets
     RapidJSON
 )
-
+target_compile_options(mm_client PUBLIC $<$<CXX_COMPILER_ID:Clang>:-fcoroutines-ts>)
+target_compile_options(mm_client PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/await>)
 
 if(WIN32)
     function(getPDBForDLL DLL_PATH OUT_VAR)
