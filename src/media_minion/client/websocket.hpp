@@ -12,7 +12,29 @@
 #include <memory>
 #include <string_view>
 
+#include <experimental/coroutine>
+
 namespace media_minion::client {
+
+struct ExecutionToken;
+
+struct WebsocketPromise {
+    boost::asio::io_context* io_ctx;
+    boost::system::error_code result;
+    media_minion::client::ExecutionToken get_return_object();
+    std::experimental::suspend_never initial_suspend();
+    std::experimental::suspend_always final_suspend();
+    void return_value(boost::system::error_code const& ec);
+};
+
+struct ExecutionToken {
+private:
+    std::experimental::coroutine_handle<WebsocketPromise> m_coroutine;
+public:
+    ExecutionToken(std::experimental::coroutine_handle<WebsocketPromise> h);
+    ~ExecutionToken();
+    boost::system::error_code run();
+};
 
 class Websocket {
 private:
@@ -33,6 +55,7 @@ public:
     ~Websocket();
 
     void run(std::string_view host, std::string_view service);
+    ExecutionToken co_run(std::string_view host, std::string_view service);
 
     Websocket(Websocket const&) = delete;
     Websocket& operator=(Websocket const&) = delete;
