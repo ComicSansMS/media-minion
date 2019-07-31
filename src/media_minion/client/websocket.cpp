@@ -37,7 +37,7 @@ public:
 
     void await_suspend(std::experimental::coroutine_handle<> h) {
         m_resolver.async_resolve(m_host, m_service,
-            [this, h](boost::system::error_code const& ec, boost::asio::ip::tcp::resolver::results_type results) {
+            [this, h](boost::system::error_code const& ec, boost::asio::ip::tcp::resolver::results_type results) mutable {
                 m_ec = ec;
                 m_results = std::move(results);
                 h.resume();
@@ -64,7 +64,7 @@ public:
 
     void await_suspend(std::experimental::coroutine_handle<> h) {
         boost::asio::async_connect(m_socket, m_resolverResults,
-            [this, h](boost::system::error_code const& ec, boost::asio::ip::tcp::endpoint const& endpoint) {
+            [this, h](boost::system::error_code const& ec, boost::asio::ip::tcp::endpoint const& endpoint) mutable {
                 m_ec = ec;
                 m_endpoint = endpoint;
                 h.resume();
@@ -91,7 +91,7 @@ public:
     bool await_ready() { return false; }
 
     void await_suspend(std::experimental::coroutine_handle<> h) {
-        m_websocket.async_handshake(m_hostname, m_target, [this, h](boost::system::error_code const& ec) {
+        m_websocket.async_handshake(m_hostname, m_target, [this, h](boost::system::error_code const& ec) mutable {
                 m_ec = ec;
                 h.resume();
             });
@@ -141,6 +141,11 @@ std::experimental::suspend_always WebsocketPromise::final_suspend() {
 void WebsocketPromise::return_value(boost::system::error_code const& ec)
 {
     result = ec;
+}
+
+void WebsocketPromise::unhandled_exception()
+{
+    std::terminate();
 }
 
 ExecutionToken::ExecutionToken(std::experimental::coroutine_handle<WebsocketPromise> h)

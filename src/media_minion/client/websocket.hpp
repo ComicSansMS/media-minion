@@ -25,6 +25,7 @@ struct WebsocketPromise {
     std::experimental::suspend_never initial_suspend();
     std::experimental::suspend_always final_suspend();
     void return_value(boost::system::error_code const& ec);
+    void unhandled_exception();
 };
 
 struct ExecutionToken {
@@ -48,7 +49,6 @@ private:
         WebsocketSession(boost::asio::ip::tcp::socket&& s);
     };
     std::unique_ptr<WebsocketSession> m_session;
-    std::thread m_thread;
 public:
     Websocket();
 

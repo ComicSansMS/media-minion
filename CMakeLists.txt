@@ -11,6 +11,7 @@ add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/std:c++latest>)
 add_compile_options($<$<CXX_COMPILER_ID:GNU,AppleClang,Clang>:-Wall>)
 add_compile_options($<$<CXX_COMPILER_ID:GNU,AppleClang,Clang>:-pedantic>)
 add_compile_options($<$<CXX_COMPILER_ID:Clang>:-stdlib=libc++>)
+add_link_options($<$<CXX_COMPILER_ID:Clang>:-stdlib=libc++>)
 
 if(WIN32)
     add_compile_definitions(_WIN32_WINNT=0x0601)

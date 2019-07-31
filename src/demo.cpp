@@ -218,8 +218,12 @@ int main()
     Ghulbus::Log::initializeLogging();
     auto guard_shutdown_logging = Ghulbus::finally([]() { Ghulbus::Log::shutdownLogging(); });
     Ghulbus::Log::setLogLevel(Ghulbus::LogLevel::Info);
+#ifdef WIN32
     Ghulbus::Log::Handlers::LogMultiSink downstream(Ghulbus::Log::Handlers::logToCout,
                                                     Ghulbus::Log::Handlers::logToWindowsDebugger);
+#else
+    auto downstream = Ghulbus::Log::Handlers::logToCout;
+#endif
     Ghulbus::Log::Handlers::LogAsync top_level(downstream);
     top_level.start();
     auto guard_stop_async_logging = Ghulbus::finally([&top_level]() { top_level.stop();; });
