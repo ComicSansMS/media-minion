@@ -54,8 +54,7 @@ public:
 
     ~Websocket();
 
-    void run(std::string_view host, std::string_view service);
-    ExecutionToken co_run(std::string_view host, std::string_view service);
+    ExecutionToken run(std::string_view host, std::string_view service);
 
     Websocket(Websocket const&) = delete;
     Websocket& operator=(Websocket const&) = delete;

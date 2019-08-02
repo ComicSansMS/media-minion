@@ -123,6 +123,7 @@ set(MM_COMMON_SOURCE_FILES
 
 set(MM_COMMON_HEADER_FILES
     ${MM_COMMON_SOURCE_DIRECTORY}/common.hpp
+    ${MM_COMMON_SOURCE_DIRECTORY}/coroutine_support/awaitables.hpp
 )
 
 add_library(mm_common STATIC

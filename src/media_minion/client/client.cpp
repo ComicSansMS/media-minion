@@ -16,7 +16,7 @@ int main()
     media_minion::client::Websocket ws;
     ws.onError = [](boost::system::error_code const& ec) { GHULBUS_LOG(Error, ec.message()); };
     //ws.run("localhost", "13444");
-    auto session = ws.co_run("localhost", "13444");
+    auto session = ws.run("localhost", "13444");
     GHULBUS_LOG(Trace, "Coroutine is up.");
     auto const ec = session.run();
     GHULBUS_LOG(Info, "Completed: " << ec.message());
