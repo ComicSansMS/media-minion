@@ -68,8 +68,11 @@ if(WIN32)
 endif()
 
 set(Boost_USE_STATIC_LIBS ON)
-find_package(Boost REQUIRED COMPONENTS system thread)
-add_definitions(-DBOOST_ALL_NO_LIB)
+find_package(Boost 1.66 REQUIRED COMPONENTS system thread)
+add_compile_definitions(BOOST_ALL_NO_LIB)
+if(Boost_VERSION GREATER_EQUAL 107000)
+    add_compile_definitions(BOOST_BEAST_SEPARATE_COMPILATION)
+endif()
 
 find_package(Qt5 REQUIRED COMPONENTS Widgets
     HINTS $ENV{QT5_ROOT}/5.12.2/msvc2017_64 $ENV{QT5_ROOT}/5.12.0/msvc2017_64
@@ -115,6 +118,7 @@ set(MM_COMMON_SOURCE_DIRECTORY ${PROJECT_SOURCE_DIR}/src/media_minion/common)
 
 set(MM_COMMON_SOURCE_FILES
     ${MM_COMMON_SOURCE_DIRECTORY}/common.cpp
+    ${MM_COMMON_SOURCE_DIRECTORY}/beast_compile.cpp
 )
 
 set(MM_COMMON_HEADER_FILES
@@ -126,6 +130,10 @@ add_library(mm_common STATIC
     ${MM_COMMON_HEADER_FILES}
 )
 target_include_directories(mm_common PUBLIC ${MM_INCLUDE_DIRECTORY})
+target_link_libraries(mm_common PUBLIC
+    Boost::disable_autolinking
+    Boost::headers
+)
 
 #########################################################################################
 #### server                                                                          ####
@@ -165,6 +173,7 @@ target_link_libraries(mm_server PUBLIC
     Boost::thread
     Ghulbus::gbBase
     RapidJSON
+    mm_common
 )
 
 #########################################################################################
@@ -212,6 +221,7 @@ target_link_libraries(mm_player PUBLIC
     Ghulbus::gbAudio
     Qt5::Core
     Qt5::Widgets
+    mm_common
 )
 
 #########################################################################################
@@ -261,6 +271,7 @@ target_link_libraries(mm_client PUBLIC
     Qt5::Core
     Qt5::Widgets
     RapidJSON
+    mm_common
 )
 target_compile_options(mm_client PUBLIC $<$<CXX_COMPILER_ID:Clang>:-fcoroutines-ts>)
 target_compile_options(mm_client PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/await>)
