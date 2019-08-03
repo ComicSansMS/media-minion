@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/W4>)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/permissive->)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/std:c++latest>)
+add_compile_definitions($<$<CXX_COMPILER_ID:MSVC>:_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING>)
 add_compile_options($<$<CXX_COMPILER_ID:GNU,AppleClang,Clang>:-Wall>)
 add_compile_options($<$<CXX_COMPILER_ID:GNU,AppleClang,Clang>:-pedantic>)
 add_compile_options($<$<CXX_COMPILER_ID:Clang>:-stdlib=libc++>)
@@ -134,6 +135,7 @@ target_include_directories(mm_common PUBLIC ${MM_INCLUDE_DIRECTORY})
 target_link_libraries(mm_common PUBLIC
     Boost::disable_autolinking
     Boost::headers
+    RapidJSON
 )
 
 #########################################################################################
@@ -176,6 +178,8 @@ target_link_libraries(mm_server PUBLIC
     RapidJSON
     mm_common
 )
+
+file(COPY ${PROJECT_SOURCE_DIR}/config/server_config.json DESTINATION ${PROJECT_BINARY_DIR})
 
 #########################################################################################
 #### player                                                                          ####

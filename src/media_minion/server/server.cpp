@@ -1,4 +1,5 @@
 #include <media_minion/server/application.hpp>
+#include <media_minion/server/configuration.hpp>
 
 #include <gbBase/Log.hpp>
 #include <gbBase/LogHandlers.hpp>
@@ -44,10 +45,14 @@ LogFinalizers init_logging()
 int main()
 {
     auto const guard_logging = init_logging();
-    media_minion::server::Configuration config;
-    config.protocol = media_minion::server::Configuration::Protocol::ipv4;
-    config.listening_port = 13444;
-    media_minion::server::Application server(config);
+
+    auto opt_config = media_minion::server::parseServerConfig("server_config.json");
+    if (!opt_config) {
+        GHULBUS_LOG(Critical, "Invalid server configuration.");
+        return 1;
+    }
+
+    media_minion::server::Application server(*opt_config);
 
     int res = -1;
     std::thread t{ [&server, &res]() { res = server.run(); } };

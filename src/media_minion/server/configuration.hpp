@@ -2,6 +2,8 @@
 #define MEDIA_MINION_INCLUDE_GUARD_SERVER_CONFIGURATION_HPP_
 
 #include <cstdint>
+#include <filesystem>
+#include <optional>
 
 namespace media_minion::server {
 
@@ -12,6 +14,8 @@ struct Configuration {
         ipv6
     } protocol;
 };
+
+std::optional<Configuration> parseServerConfig(std::filesystem::path const& config_filepath);
 
 }
 #endif
