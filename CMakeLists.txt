@@ -120,11 +120,13 @@ set(MM_COMMON_SOURCE_DIRECTORY ${PROJECT_SOURCE_DIR}/src/media_minion/common)
 set(MM_COMMON_SOURCE_FILES
     ${MM_COMMON_SOURCE_DIRECTORY}/common.cpp
     ${MM_COMMON_SOURCE_DIRECTORY}/beast_compile.cpp
+    ${MM_COMMON_SOURCE_DIRECTORY}/logging.cpp
 )
 
 set(MM_COMMON_HEADER_FILES
     ${MM_COMMON_SOURCE_DIRECTORY}/common.hpp
     ${MM_COMMON_SOURCE_DIRECTORY}/coroutine_support/awaitables.hpp
+    ${MM_COMMON_SOURCE_DIRECTORY}/logging.hpp
 )
 
 add_library(mm_common STATIC
@@ -135,8 +137,12 @@ target_include_directories(mm_common PUBLIC ${MM_INCLUDE_DIRECTORY})
 target_link_libraries(mm_common PUBLIC
     Boost::disable_autolinking
     Boost::headers
+    Boost::system
+    Ghulbus::gbBase
     RapidJSON
 )
+target_compile_options(mm_common PUBLIC $<$<CXX_COMPILER_ID:Clang>:-fcoroutines-ts>)
+target_compile_options(mm_common PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/await>)
 
 #########################################################################################
 #### server                                                                          ####
@@ -171,11 +177,7 @@ add_executable(mm_server
 )
 target_include_directories(mm_server PUBLIC ${MM_INCLUDE_DIRECTORY})
 target_link_libraries(mm_server PUBLIC
-    Boost::disable_autolinking
-    Boost::system
     Boost::thread
-    Ghulbus::gbBase
-    RapidJSON
     mm_common
 )
 
@@ -189,12 +191,17 @@ set(MM_PLAYER_SOURCE_DIRECTORY ${PROJECT_SOURCE_DIR}/src/media_minion/player)
 
 set(MM_PLAYER_SOURCE_FILES
     ${MM_PLAYER_SOURCE_DIRECTORY}/player.cpp
+    ${MM_PLAYER_SOURCE_DIRECTORY}/audio_player.cpp
+    ${MM_PLAYER_SOURCE_DIRECTORY}/configuration.cpp
 )
 
 set(MM_PLAYER_HEADER_FILES
+    ${MM_PLAYER_SOURCE_DIRECTORY}/audio_player.hpp
+    ${MM_PLAYER_SOURCE_DIRECTORY}/configuration.hpp
 )
 
 set(MM_PLAYER_QT_SOURCE_FILES
+    ${MM_PLAYER_SOURCE_DIRECTORY}/ui/player_application.cpp
     ${MM_PLAYER_SOURCE_DIRECTORY}/ui/tray_icon.cpp
 )
 
@@ -202,6 +209,7 @@ set(MM_PLAYER_QT_HEADER_FILES
 )
 
 set(MM_PLAYER_QT_MOC_HEADER_FILES
+    ${MM_PLAYER_SOURCE_DIRECTORY}/ui/player_application.hpp
     ${MM_PLAYER_SOURCE_DIRECTORY}/ui/tray_icon.hpp
 )
 qt5_wrap_cpp(MM_PLAYER_QT_MOC_SOURCE_FILES ${MM_PLAYER_QT_MOC_HEADER_FILES})
@@ -220,14 +228,13 @@ add_executable(mm_player WIN32
 )
 target_include_directories(mm_player PUBLIC ${MM_INCLUDE_DIRECTORY})
 target_link_libraries(mm_player PUBLIC
-    Boost::disable_autolinking
-    Boost::system
-    Ghulbus::gbBase
     Ghulbus::gbAudio
     Qt5::Core
     Qt5::Widgets
     mm_common
 )
+
+file(COPY ${PROJECT_SOURCE_DIR}/config/player_config.json DESTINATION ${PROJECT_BINARY_DIR})
 
 #########################################################################################
 #### client                                                                          ####
@@ -270,16 +277,10 @@ add_executable(mm_client #WIN32
 )
 target_include_directories(mm_client PUBLIC ${MM_INCLUDE_DIRECTORY})
 target_link_libraries(mm_client PUBLIC
-    Boost::disable_autolinking
-    Boost::system
-    Ghulbus::gbBase
     Qt5::Core
     Qt5::Widgets
-    RapidJSON
     mm_common
 )
-target_compile_options(mm_client PUBLIC $<$<CXX_COMPILER_ID:Clang>:-fcoroutines-ts>)
-target_compile_options(mm_client PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/await>)
 
 if(WIN32)
     function(getPDBForDLL DLL_PATH OUT_VAR)
