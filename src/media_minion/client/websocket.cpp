@@ -61,7 +61,7 @@ Websocket::WebsocketSession::WebsocketSession(boost::asio::ip::tcp::socket&& s)
 }
 
 Websocket::Websocket()
-    :m_work(m_io_ctx.get_executor())
+    :m_io_ctx(1), m_work(m_io_ctx.get_executor())
 {
 }
 
