@@ -193,11 +193,13 @@ set(MM_PLAYER_SOURCE_FILES
     ${MM_PLAYER_SOURCE_DIRECTORY}/player.cpp
     ${MM_PLAYER_SOURCE_DIRECTORY}/audio_player.cpp
     ${MM_PLAYER_SOURCE_DIRECTORY}/configuration.cpp
+    ${MM_PLAYER_SOURCE_DIRECTORY}/wav_stream.cpp
 )
 
 set(MM_PLAYER_HEADER_FILES
     ${MM_PLAYER_SOURCE_DIRECTORY}/audio_player.hpp
     ${MM_PLAYER_SOURCE_DIRECTORY}/configuration.hpp
+    ${MM_PLAYER_SOURCE_DIRECTORY}/wav_stream.hpp
 )
 
 set(MM_PLAYER_QT_SOURCE_FILES

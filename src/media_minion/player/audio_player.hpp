@@ -6,6 +6,8 @@
 #include <gbAudio/QueuedSource.hpp>
 
 #include <array>
+#include <functional>
+#include <optional>
 
 namespace media_minion::player {
 
@@ -19,6 +21,15 @@ public:
 
     AudioPlayer(AudioPlayer const&) = delete;
     AudioPlayer(AudioPlayer&&) = delete;
+
+    void play();
+    void pause();
+    void stop();
+
+    void clear();
+    void pump();
+
+    std::function<std::optional<GhulbusAudio::DataVariant>()> onDataRequest;
 };
 
 }

@@ -27,6 +27,7 @@ int main(int argc, char* argv[])
     QApplication the_app(argc, argv);
 
     media_minion::player::ui::PlayerApplication player(config);
+    player.run();
 
     media_minion::player::ui::TrayIcon tray_icon;
 

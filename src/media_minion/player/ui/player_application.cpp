@@ -1,19 +1,30 @@
 #include <media_minion/player/ui/player_application.hpp>
 
 #include <media_minion/player/audio_player.hpp>
+#include <media_minion/player/wav_stream.hpp>
 
 #include <gbAudio/Audio.hpp>
 
 #include <gbBase/Assert.hpp>
 
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/steady_timer.hpp>
+
+#include <chrono>
 #include <thread>
 
 namespace media_minion::player::ui {
 
 struct PlayerApplication::Pimpl {
     Configuration m_config;
-    std::thread m_thread;
+
+    boost::asio::io_context m_io_ctx;
+    boost::asio::steady_timer m_audioTimer;
+
     AudioPlayer m_audio;
+    WavStream m_wavStream;
+
+    std::thread m_thread;
 
     Pimpl(Configuration const& config);
 
@@ -21,11 +32,14 @@ struct PlayerApplication::Pimpl {
     void requestShutdown();
 
     void do_run();
+private:
+    void scheduleTimer();
 };
 
 PlayerApplication::Pimpl::Pimpl(Configuration const& config)
-    :m_config(config)
+    :m_config(config), m_io_ctx(1), m_audioTimer(m_io_ctx)
 {
+    m_audio.onDataRequest = [this]() { return m_wavStream.pull(); };
 }
 
 void PlayerApplication::Pimpl::run()
@@ -40,7 +54,21 @@ void PlayerApplication::Pimpl::requestShutdown()
 
 void PlayerApplication::Pimpl::do_run()
 {
+    scheduleTimer();
 
+    m_io_ctx.post([this]() { m_audio.play(); });
+
+    m_io_ctx.run();
+}
+
+void PlayerApplication::Pimpl::scheduleTimer()
+{
+    m_audioTimer.expires_from_now(std::chrono::milliseconds(100));
+    m_audioTimer.async_wait([this](boost::system::error_code const& ec) {
+            if (ec) { return; }
+            m_audio.pump();
+            scheduleTimer();
+        });
 }
 
 
