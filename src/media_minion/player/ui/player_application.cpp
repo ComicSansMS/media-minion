@@ -1,5 +1,7 @@
 #include <media_minion/player/ui/player_application.hpp>
 
+#include <media_minion/player/ui/tray_icon.hpp>
+
 #include <media_minion/player/audio_player.hpp>
 #include <media_minion/player/wav_stream.hpp>
 
@@ -9,6 +11,8 @@
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/steady_timer.hpp>
+
+#include <QCoreApplication>
 
 #include <chrono>
 #include <thread>
@@ -26,7 +30,10 @@ struct PlayerApplication::Pimpl {
 
     std::thread m_thread;
 
+    TrayIcon m_trayIcon;
+
     Pimpl(Configuration const& config);
+    ~Pimpl();
 
     void run();
     void requestShutdown();
@@ -42,6 +49,11 @@ PlayerApplication::Pimpl::Pimpl(Configuration const& config)
     m_audio.onDataRequest = [this]() { return m_wavStream.pull(); };
 }
 
+PlayerApplication::Pimpl::~Pimpl()
+{
+    m_thread.join();
+}
+
 void PlayerApplication::Pimpl::run()
 {
     GHULBUS_PRECONDITION(!m_thread.joinable());
@@ -50,6 +62,8 @@ void PlayerApplication::Pimpl::run()
 
 void PlayerApplication::Pimpl::requestShutdown()
 {
+    m_audio.stop();
+    m_io_ctx.stop();
 }
 
 void PlayerApplication::Pimpl::do_run()
@@ -76,6 +90,7 @@ PlayerApplication::PlayerApplication(Configuration const& config)
     :m_pimpl(std::make_unique<Pimpl>(config))
 {
     GhulbusAudio::initializeAudio();
+    connect(&m_pimpl->m_trayIcon, &TrayIcon::requestShutdown, this, &PlayerApplication::requestShutdown);
 }
 
 PlayerApplication::~PlayerApplication()
@@ -91,6 +106,7 @@ void PlayerApplication::run()
 void PlayerApplication::requestShutdown()
 {
     m_pimpl->requestShutdown();
+    QCoreApplication::quit();
 }
 
 }

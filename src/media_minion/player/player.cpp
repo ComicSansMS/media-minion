@@ -1,6 +1,5 @@
 #include <media_minion/player/configuration.hpp>
 #include <media_minion/player/ui/player_application.hpp>
-#include <media_minion/player/ui/tray_icon.hpp>
 
 #include <media_minion/common/logging.hpp>
 
@@ -28,8 +27,6 @@ int main(int argc, char* argv[])
 
     media_minion::player::ui::PlayerApplication player(config);
     player.run();
-
-    media_minion::player::ui::TrayIcon tray_icon;
 
     return the_app.exec();
 }

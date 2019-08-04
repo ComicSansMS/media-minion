@@ -220,6 +220,12 @@ source_group(moc FILES
     ${MM_PLAYER_QT_MOC_SOURCE_FILES}
 )
 
+qt5_add_resources(MM_PLAYER_QT_RESOURCE_FILES ${PROJECT_SOURCE_DIR}/resources/mm_player.qrc)
+source_group(resources FILES
+    ${MM_PLAYER_QT_RESOURCE_FILES}
+)
+
+
 add_executable(mm_player WIN32
     ${MM_PLAYER_SOURCE_FILES}
     ${MM_PLAYER_HEADER_FILES}
@@ -227,6 +233,7 @@ add_executable(mm_player WIN32
     ${MM_PLAYER_QT_HEADER_FILES}
     ${MM_PLAYER_QT_MOC_HEADER_FILES}
     ${MM_PLAYER_QT_MOC_SOURCE_FILES}
+    ${MM_PLAYER_QT_RESOURCE_FILES}
 )
 target_include_directories(mm_player PUBLIC ${MM_INCLUDE_DIRECTORY})
 target_link_libraries(mm_player PUBLIC
