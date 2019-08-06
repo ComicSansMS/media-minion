@@ -67,6 +67,9 @@ if(WIN32)
         ${FFMPEG_AVFORMAT_DLL}
     )
 endif()
+add_library(ffmpeg INTERFACE)
+target_include_directories(ffmpeg INTERFACE ${FFMPEG_INCLUDE_DIRECTORY})
+target_link_libraries(ffmpeg INTERFACE ${FFMPEG_LIBRARIES})
 
 set(Boost_USE_STATIC_LIBS ON)
 find_package(Boost 1.66 REQUIRED COMPONENTS system thread)
@@ -193,12 +196,14 @@ set(MM_PLAYER_SOURCE_FILES
     ${MM_PLAYER_SOURCE_DIRECTORY}/player.cpp
     ${MM_PLAYER_SOURCE_DIRECTORY}/audio_player.cpp
     ${MM_PLAYER_SOURCE_DIRECTORY}/configuration.cpp
+    ${MM_PLAYER_SOURCE_DIRECTORY}/ffmpeg_stream.cpp
     ${MM_PLAYER_SOURCE_DIRECTORY}/wav_stream.cpp
 )
 
 set(MM_PLAYER_HEADER_FILES
     ${MM_PLAYER_SOURCE_DIRECTORY}/audio_player.hpp
     ${MM_PLAYER_SOURCE_DIRECTORY}/configuration.hpp
+    ${MM_PLAYER_SOURCE_DIRECTORY}/ffmpeg_stream.hpp
     ${MM_PLAYER_SOURCE_DIRECTORY}/wav_stream.hpp
 )
 
@@ -238,6 +243,7 @@ add_executable(mm_player WIN32
 target_include_directories(mm_player PUBLIC ${MM_INCLUDE_DIRECTORY})
 target_link_libraries(mm_player PUBLIC
     Ghulbus::gbAudio
+    ffmpeg
     Qt5::Core
     Qt5::Widgets
     mm_common

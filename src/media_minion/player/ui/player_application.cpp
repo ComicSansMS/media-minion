@@ -3,6 +3,7 @@
 #include <media_minion/player/ui/tray_icon.hpp>
 
 #include <media_minion/player/audio_player.hpp>
+#include <media_minion/player/ffmpeg_stream.hpp>
 #include <media_minion/player/wav_stream.hpp>
 
 #include <gbAudio/Audio.hpp>
@@ -27,6 +28,7 @@ struct PlayerApplication::Pimpl {
 
     AudioPlayer m_audio;
     WavStream m_wavStream;
+    FfmpegStream m_ffmpegStream;
 
     std::thread m_thread;
 
@@ -90,6 +92,7 @@ PlayerApplication::PlayerApplication(Configuration const& config)
     :m_pimpl(std::make_unique<Pimpl>(config))
 {
     GhulbusAudio::initializeAudio();
+    FfmpegStream::initializeFfmpeg();
     connect(&m_pimpl->m_trayIcon, &TrayIcon::requestShutdown, this, &PlayerApplication::requestShutdown);
 }
 

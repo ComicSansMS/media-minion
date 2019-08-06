@@ -11,6 +11,7 @@ TrayIcon::TrayIcon()
 
     setIcon(QIcon(":/mm_player.ico"));
     setToolTip("Media Minion Player");
+    show();
 }
 
 void TrayIcon::onQuitRequested()
