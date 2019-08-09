@@ -1,6 +1,7 @@
 #include <media_minion/player/ffmpeg_stream.hpp>
 
 #include <gbBase/Log.hpp>
+#include <gbBase/Finally.hpp>
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -17,6 +18,8 @@ extern "C" {
 
 #include <fstream>
 #include <string>
+#include <unordered_map>
+#include <utility>
 
 namespace {
 void ffmpegLogHandler(void* avcl, int level, char const* fmt, va_list vl)
@@ -52,23 +55,6 @@ void ffmpegLogHandler(void* avcl, int level, char const* fmt, va_list vl)
     // remove trailing '\n' if any; GHULBUS_LOG will always linebreak after each message by itself
     if (buffer[buffer_size - 2] == '\n') { buffer[buffer_size - 2] = '\0'; }
     GHULBUS_LOG_QUALIFIED(log_level, "[FFMPEG] " << buffer.data());
-}
-
-std::ostream& operator<<(std::ostream& os, AVMediaType const& media_type)
-{
-    switch (media_type)
-    {
-    case AVMEDIA_TYPE_UNKNOWN:    os << "Unknown type"; break;
-    case AVMEDIA_TYPE_VIDEO:      os << "Video"; break;
-    case AVMEDIA_TYPE_AUDIO:      os << "Audio"; break;
-    case AVMEDIA_TYPE_DATA:       os << "Data"; break;
-    case AVMEDIA_TYPE_SUBTITLE:   os << "Subtitle"; break;
-    case AVMEDIA_TYPE_ATTACHMENT: os << "Attachment"; break;
-    case AVMEDIA_TYPE_NB:         os << "NB"; break;
-    default:
-        GHULBUS_UNREACHABLE_MESSAGE("Invalid AVMEDIA_* enum.");
-    }
-    return os;
 }
 
 std::string translateErrorCode(int ec)
@@ -166,6 +152,23 @@ int64_t StreamIOContext::io_seek(int64_t offset, int whence)
 }
 }
 
+std::ostream& operator<<(std::ostream& os, AVMediaType const& media_type)
+{
+    switch (media_type)
+    {
+    case AVMEDIA_TYPE_UNKNOWN:    os << "Unknown type"; break;
+    case AVMEDIA_TYPE_VIDEO:      os << "Video"; break;
+    case AVMEDIA_TYPE_AUDIO:      os << "Audio"; break;
+    case AVMEDIA_TYPE_DATA:       os << "Data"; break;
+    case AVMEDIA_TYPE_SUBTITLE:   os << "Subtitle"; break;
+    case AVMEDIA_TYPE_ATTACHMENT: os << "Attachment"; break;
+    case AVMEDIA_TYPE_NB:         os << "NB"; break;
+    default:
+        GHULBUS_UNREACHABLE_MESSAGE("Invalid AVMEDIA_* enum.");
+    }
+    return os;
+}
+
 namespace media_minion::player {
 
 struct FfmpegStream::Pimpl {
@@ -173,9 +176,17 @@ struct FfmpegStream::Pimpl {
     AVFormatContext* m_formatContext;
     std::string m_filename;
     std::ifstream m_fin;
-    StreamIOContext m_ioContext;
+    StreamIOContext m_avIoContext;
+    int m_avStreamIndex;
+    std::unique_ptr<AVCodecContext, void(*)(AVCodecContext*)> m_avCodecContext;
+    Ghulbus::AnyFinalizer m_guardCodecContextClose;
+    std::unique_ptr<AVFrame, void(*)(AVFrame*)> m_avFrame;
+    AVPacket m_avPacket;
 
     Pimpl();
+
+    std::optional<int> findAudioStream();
+    std::unordered_map<std::string, std::string> getTrackInfo();
 };
 
 FfmpegStream::Pimpl::Pimpl()
@@ -183,9 +194,11 @@ FfmpegStream::Pimpl::Pimpl()
      m_formatContext(m_formatContextStorage.get()),
      m_filename("D:/Media/Warpaint/The Fool (2010)/Warpaint - 01 Set Your Arms Down.mp3"),
      m_fin(m_filename, std::ios_base::binary),
-     m_ioContext(m_fin, 8192)
+     m_avIoContext(m_fin, 8192), m_avStreamIndex(0),
+     m_avCodecContext(nullptr, [](AVCodecContext* ctx) { avcodec_free_context(&ctx); }),
+     m_avFrame(av_frame_alloc(), [](AVFrame* f) { av_frame_free(&f); })
 {
-    m_formatContext->pb = m_ioContext.getContext();
+    m_formatContext->pb = m_avIoContext.getContext();
 
     if (avformat_open_input(&m_formatContext, m_filename.c_str(), nullptr, nullptr) != 0) {
         GHULBUS_LOG(Error, "Error opening file '" << m_filename << "'.");
@@ -195,14 +208,61 @@ FfmpegStream::Pimpl::Pimpl()
         GHULBUS_LOG(Error, "Error reading stream info.");
     }
 
-    int play = -1;
-    for (unsigned int i = 0; i < m_formatContext->nb_streams; ++i) {
-        AVStream* it = m_formatContext->streams[i];
-        GHULBUS_LOG(Info, "#" << i << " " << it->codecpar->codec_type);
-        if (it->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-            play = i;
+    auto const opt_stream_index = findAudioStream();
+    if (!opt_stream_index) {
+        GHULBUS_LOG(Error, "No audio stream found.");
+    }
+    m_avStreamIndex = *opt_stream_index;
+    AVStream* avstream = m_formatContext->streams[m_avStreamIndex];
+
+    auto const length = std::chrono::seconds((avstream->duration / avstream->time_base.den) *
+                                             avstream->time_base.num);
+    auto codec = avcodec_find_decoder(avstream->codecpar->codec_id);
+    if (codec == 0) {
+        GHULBUS_LOG(Error, "Invalid codec.");
+    }
+
+    m_avCodecContext.reset(avcodec_alloc_context3(codec));
+    auto res = avcodec_open2(m_avCodecContext.get(), codec, nullptr);
+    if (res != 0) {
+        GHULBUS_LOG(Error, "Error opening codec: " << translateErrorCode(res));
+    }
+    m_guardCodecContextClose = Ghulbus::finally([this]() { avcodec_close(m_avCodecContext.get()); });
+
+    av_init_packet(&m_avPacket);
+    m_avPacket.data = nullptr;
+    m_avPacket.size = 0;
+    while (av_read_frame(m_formatContext, &m_avPacket) == 0) {
+        if (m_avPacket.stream_index == m_avStreamIndex) {
+            break;
         }
     }
+    
+}
+
+std::optional<int> FfmpegStream::Pimpl::findAudioStream()
+{
+    GHULBUS_LOG(Trace, "Scanning a/v streams");
+    std::optional<int> ret;
+    if (m_formatContext->nb_streams > static_cast<unsigned int>(std::numeric_limits<int>::max())) { return ret; }
+    for (int i = 0; i < static_cast<int>(m_formatContext->nb_streams); ++i) {
+        AVStream* it = m_formatContext->streams[i];
+        GHULBUS_LOG(Trace, " #" << i << " " << static_cast<AVMediaType>(it->codecpar->codec_type));
+        if (it->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+            ret = i;
+        }
+    }
+    return ret;
+}
+
+std::unordered_map<std::string, std::string> FfmpegStream::Pimpl::getTrackInfo()
+{
+    std::unordered_map<std::string, std::string> ret;
+    AVDictionaryEntry* t = NULL;
+    while ((t = av_dict_get(m_formatContext->metadata, "", t, AV_DICT_IGNORE_SUFFIX)) != 0) {
+        ret.emplace(std::make_pair(t->key, t->value));
+    }
+    return ret;
 }
 
 void FfmpegStream::initializeFfmpeg()
