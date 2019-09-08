@@ -124,12 +124,14 @@ set(MM_COMMON_SOURCE_FILES
     ${MM_COMMON_SOURCE_DIRECTORY}/common.cpp
     ${MM_COMMON_SOURCE_DIRECTORY}/beast_compile.cpp
     ${MM_COMMON_SOURCE_DIRECTORY}/logging.cpp
+    ${MM_COMMON_SOURCE_DIRECTORY}/result.cpp
 )
 
 set(MM_COMMON_HEADER_FILES
     ${MM_COMMON_SOURCE_DIRECTORY}/common.hpp
     ${MM_COMMON_SOURCE_DIRECTORY}/coroutine_support/awaitables.hpp
     ${MM_COMMON_SOURCE_DIRECTORY}/logging.hpp
+    ${MM_COMMON_SOURCE_DIRECTORY}/result.hpp
 )
 
 add_library(mm_common STATIC

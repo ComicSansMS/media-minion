@@ -1,5 +1,7 @@
 #include <media_minion/player/ffmpeg_stream.hpp>
 
+#include <media_minion/common/result.hpp>
+
 #include <gbBase/Log.hpp>
 #include <gbBase/Finally.hpp>
 
@@ -16,6 +18,7 @@ extern "C" {
 #pragma warning(pop)
 #endif
 
+#include <algorithm>
 #include <fstream>
 #include <string>
 #include <unordered_map>
@@ -150,6 +153,125 @@ int64_t StreamIOContext::io_seek(int64_t offset, int whence)
     if (m_fin.fail()) { return -1; }
     return ret;
 }
+
+media_minion::Result<GhulbusAudio::DataStereo16Bit> decode_frame_s16p(AVCodecContext* codec_context, AVFrame* frame)
+{
+    GHULBUS_PRECONDITION(codec_context->sample_rate > 0);
+    GhulbusAudio::DataStereo16Bit audio_data{ static_cast<uint32_t>(codec_context->sample_rate) };
+    for (;;) {
+        int res = avcodec_receive_frame(codec_context, frame);
+        if (res != 0) {
+            if (res == AVERROR(EAGAIN)) {
+                // everything we read before was decoded; read more stuff and call send_packet again
+                break;
+            } else if (res == AVERROR_EOF) {
+                GHULBUS_LOG(Info, "Done decoding.");
+                break;
+            } else {
+                GHULBUS_LOG(Error, "Codec receive frame error: " << res);
+                return make_error_code(media_minion::errc::decode_error);
+            }
+        }
+        GHULBUS_ASSERT(av_get_bytes_per_sample(codec_context->sample_fmt) == sizeof(int16_t));
+        std::size_t const idx_base = audio_data.getNumberOfSamples();
+        audio_data.resize(audio_data.getNumberOfSamples() + frame->nb_samples);
+        for (int sample_idx = 0; sample_idx < frame->nb_samples; ++sample_idx) {
+            std::memcpy(&audio_data[idx_base+ sample_idx].left,
+                frame->extended_data[0] + sizeof(int16_t) * sample_idx, sizeof(int16_t));
+            std::memcpy(&audio_data[idx_base+ sample_idx].right,
+                frame->extended_data[1] + sizeof(int16_t) * sample_idx, sizeof(int16_t));
+        }
+    }
+    return audio_data;
+}
+
+media_minion::Result<GhulbusAudio::DataStereo16Bit> decode_frame_s32(AVCodecContext* codec_context, AVFrame* frame)
+{
+    GHULBUS_PRECONDITION(codec_context->sample_rate > 0);
+    GhulbusAudio::DataStereo16Bit audio_data{ static_cast<uint32_t>(codec_context->sample_rate) };
+    for (;;) {
+        int res = avcodec_receive_frame(codec_context, frame);
+        if (res != 0) {
+            if (res == AVERROR(EAGAIN)) {
+                // everything we read before was decoded; read more stuff and call send_packet again
+                break;
+            } else if (res == AVERROR_EOF) {
+                GHULBUS_LOG(Info, "Done decoding.");
+                break;
+            } else {
+                GHULBUS_LOG(Error, "Codec receive frame error: " << res);
+                return make_error_code(media_minion::errc::decode_error);
+            }
+        }
+        GHULBUS_ASSERT(av_get_bytes_per_sample(codec_context->sample_fmt) == sizeof(int32_t));
+        std::size_t const idx_base = audio_data.getNumberOfSamples();
+        audio_data.resize(audio_data.getNumberOfSamples() + frame->nb_samples);
+        for (int sample_idx = 0; sample_idx < frame->nb_samples; ++sample_idx) {
+            int32_t s[2];
+            std::memcpy(s, frame->extended_data[0] + sizeof(int32_t) * 2 * sample_idx, 2 * sizeof(int32_t));
+            audio_data[sample_idx].left = s[0] >> 16;
+            audio_data[sample_idx].right = s[1] >> 16;
+        }
+    }
+    return audio_data;
+}
+
+media_minion::Result<GhulbusAudio::DataStereo16Bit> decode_frame_flp(AVCodecContext* codec_context, AVFrame* frame)
+{
+    GHULBUS_PRECONDITION(codec_context->sample_rate > 0);
+    GhulbusAudio::DataStereo16Bit audio_data{ static_cast<uint32_t>(codec_context->sample_rate) };
+    for (;;) {
+        int res = avcodec_receive_frame(codec_context, frame);
+        if (res != 0) {
+            if (res == AVERROR(EAGAIN)) {
+                // everything we read before was decoded; read more stuff and call send_packet again
+                break;
+            } else if (res == AVERROR_EOF) {
+                GHULBUS_LOG(Info, "Done decoding.");
+                break;
+            } else {
+                GHULBUS_LOG(Error, "Codec receive frame error: " << res);
+                return make_error_code(media_minion::errc::decode_error);
+            }
+        }
+        GHULBUS_ASSERT(av_get_bytes_per_sample(codec_context->sample_fmt) == sizeof(float));
+        std::size_t const idx_base = audio_data.getNumberOfSamples();
+        audio_data.resize(audio_data.getNumberOfSamples() + frame->nb_samples);
+        for (int sample_idx = 0; sample_idx < frame->nb_samples; ++sample_idx) {
+            float f1, f2;
+            std::memcpy(&f1, frame->extended_data[0] + sizeof(float) * sample_idx, sizeof(float));
+            f1 = std::clamp(f1, -1.f, 1.f);
+            audio_data[idx_base + sample_idx].left =  static_cast<int16_t>(f1 * 32767.f);
+            std::memcpy(&f2, frame->extended_data[1] + sizeof(float) * sample_idx, sizeof(float));
+            f2 = std::clamp(f2, -1.f, 1.f);
+            audio_data[idx_base + sample_idx].right = static_cast<int16_t>(f2 * 32767.f);
+        }
+    }
+    return audio_data;
+}
+
+media_minion::Result<GhulbusAudio::DataVariant> decode_packet(AVFormatContext* format_context, AVPacket* packet,
+                                                              AVCodecContext* codec_context, AVFrame* frame)
+{
+    auto const packet_guard =
+        Ghulbus::finally([packet]() mutable { if (packet) { av_packet_unref(packet); } }); // capture by-value here! packet will
+                                                                                           // get overwritten by decode below
+    int res = avcodec_send_packet(codec_context, packet);
+    if (res != 0) {
+        GHULBUS_LOG(Error, "Codec send packet error: " << res);
+        return make_error_code(media_minion::errc::decode_error);
+    }
+
+    switch (codec_context->sample_fmt)
+    {
+    case AV_SAMPLE_FMT_S16P: MM_OUTCOME_PROPAGATE(decode_frame_s16p(codec_context, frame));
+    case AV_SAMPLE_FMT_S32:  MM_OUTCOME_PROPAGATE(decode_frame_s32(codec_context, frame));
+    case AV_SAMPLE_FMT_FLTP: MM_OUTCOME_PROPAGATE(decode_frame_flp(codec_context, frame));
+    default:
+        GHULBUS_LOG(Error, "Unrecognized sample format " << av_get_sample_fmt_name(codec_context->sample_fmt));
+        return make_error_code(media_minion::errc::decode_error);
+    }
+}
 }
 
 std::ostream& operator<<(std::ostream& os, AVMediaType const& media_type)
@@ -187,6 +309,7 @@ struct FfmpegStream::Pimpl {
 
     std::optional<int> findAudioStream();
     std::unordered_map<std::string, std::string> getTrackInfo();
+    std::optional<GhulbusAudio::DataVariant> pull();
 };
 
 FfmpegStream::Pimpl::Pimpl()
@@ -265,6 +388,12 @@ std::unordered_map<std::string, std::string> FfmpegStream::Pimpl::getTrackInfo()
     return ret;
 }
 
+std::optional<GhulbusAudio::DataVariant> FfmpegStream::Pimpl::pull()
+{
+    auto const data = decode_packet(m_formatContext, &m_avPacket, m_avCodecContext.get(), m_avFrame.get());
+    return data.has_value() ? std::make_optional(std::move(data).assume_value()) : std::nullopt;
+}
+
 void FfmpegStream::initializeFfmpeg()
 {
     av_log_set_callback(ffmpegLogHandler);
@@ -281,7 +410,7 @@ FfmpegStream::~FfmpegStream()
 
 std::optional<GhulbusAudio::DataVariant> FfmpegStream::pull()
 {
-    return std::nullopt;
+    return m_pimpl->pull();
 }
 
 }
